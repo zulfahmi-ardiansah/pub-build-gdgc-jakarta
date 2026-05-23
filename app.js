@@ -64,8 +64,7 @@
     { id: 5, name: 'Practice gratitude', completed: false },
   ];
 
-  // Mock weekly data for analytics
-  const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
 
   // ===================== HELPERS =====================
 
@@ -80,34 +79,6 @@
 
   // ===================== STATE =====================
 
-  function generateMockHistory() {
-    const history = {};
-    const moods = MOOD_KEYS;
-    const now = new Date();
-
-    for (let i = 1; i <= 30; i++) {
-      const d = new Date(now);
-      d.setDate(d.getDate() - i);
-      const key = dateKey(d);
-
-      // Random but plausible data
-      const habitsTotal = 5;
-      const habitsCompleted = Math.floor(Math.random() * (habitsTotal + 1));
-      const hydration = Math.floor(Math.random() * 9); // 0-8
-      const mood = Math.random() > 0.15 ? moods[Math.floor(Math.random() * moods.length)] : null;
-      const completionPct = habitsTotal > 0 ? Math.round((habitsCompleted / habitsTotal) * 100) : 0;
-
-      history[key] = {
-        mood,
-        habitsCompleted,
-        habitsTotal,
-        hydration,
-        completionPct,
-      };
-    }
-    return history;
-  }
-
   function getDefaultState() {
     const today = new Date().toDateString();
     return {
@@ -117,8 +88,7 @@
       activeTab: 'habits',
       lastDate: today,
       streakDays: 0,
-      weeklyData: [65, 80, 45, 90, 70, 55, 0], // mock + today
-      dailyHistory: generateMockHistory(),
+      dailyHistory: {},
     };
   }
 
@@ -151,11 +121,10 @@
           // Update streak
           if (allDone) {
             parsed.streakDays = (parsed.streakDays || 0) + 1;
-          } else if (!someDone) {
+          } else if (!someDone && total > 0) {
             parsed.streakDays = 0;
           }
-          // Shift weekly data
-          parsed.weeklyData = [...(parsed.weeklyData || [0,0,0,0,0,0,0]).slice(1), 0];
+
           // Reset daily
           parsed.habits.forEach(h => h.completed = false);
           parsed.hydration = 0;
@@ -165,7 +134,7 @@
 
         // Ensure dailyHistory exists
         if (!parsed.dailyHistory) {
-          parsed.dailyHistory = generateMockHistory();
+          parsed.dailyHistory = {};
         }
 
         return parsed;
@@ -383,8 +352,6 @@
 
     habit.completed = !habit.completed;
 
-    // Update today's weekly data
-    updateTodayScore();
     snapshotToday();
     saveState();
     renderHabits();
@@ -403,7 +370,6 @@
 
   function deleteHabit(id) {
     state.habits = state.habits.filter(h => h.id !== id);
-    updateTodayScore();
     snapshotToday();
     saveState();
     renderHabits();
@@ -411,12 +377,7 @@
     renderDailyStats();
   }
 
-  function updateTodayScore() {
-    const total = state.habits.length;
-    const done = state.habits.filter(h => h.completed).length;
-    const score = total > 0 ? Math.round((done / total) * 100) : 0;
-    state.weeklyData[state.weeklyData.length - 1] = score;
-  }
+
 
   function renderHabits() {
     const list = $('#habit-list');
@@ -997,12 +958,36 @@
       `;
     }
 
-    // Weekly chart
+    // Weekly chart — compute from dailyHistory
     const svg = $('#chart-svg');
     if (!svg) return;
     svg.innerHTML = '';
 
-    const data = state.weeklyData || [0, 0, 0, 0, 0, 0, 0];
+    // Build 7-day data from dailyHistory (last 7 days including today)
+    const chartData = [];
+    const now = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = dateKey(d);
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const label = dayNames[d.getDay()];
+      const isToday = i === 0;
+
+      let val = 0;
+      if (isToday) {
+        const total = state.habits.length;
+        const done = state.habits.filter(h => h.completed).length;
+        val = total > 0 ? Math.round((done / total) * 100) : 0;
+      } else {
+        const entry = (state.dailyHistory || {})[key];
+        if (entry) {
+          val = entry.completionPct || 0;
+        }
+      }
+      chartData.push({ label, val, isToday });
+    }
+
     const chartW = 350;
     const chartH = 160;
     const barW = 30;
@@ -1012,20 +997,20 @@
     const chartBottom = chartH - 25;
     const barMaxH = chartBottom - chartTop;
 
-    data.forEach((val, i) => {
+    chartData.forEach((item, i) => {
       const x = gap + i * (barW + gap);
-      const barH = (val / maxVal) * barMaxH;
+      const barH = (item.val / maxVal) * barMaxH;
       const y = chartBottom - barH;
 
       // Determine bar color class
       let barClass = 'chart-bar';
-      if (i === 6) {
+      if (item.isToday) {
         barClass += ' today';
-      } else if (val >= 70) {
+      } else if (item.val >= 70) {
         barClass += ' chart-bar--high';
-      } else if (val >= 30) {
+      } else if (item.val >= 30) {
         barClass += ' chart-bar--medium';
-      } else if (val > 0) {
+      } else if (item.val > 0) {
         barClass += ' chart-bar--low';
       }
 
@@ -1041,12 +1026,12 @@
       svg.appendChild(rect);
 
       // Value label
-      if (val > 0) {
+      if (item.val > 0) {
         const valText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         valText.setAttribute('class', 'chart-value');
         valText.setAttribute('x', x + barW / 2);
         valText.setAttribute('y', y - 4);
-        valText.textContent = `${val}%`;
+        valText.textContent = `${item.val}%`;
         svg.appendChild(valText);
       }
 
@@ -1055,7 +1040,7 @@
       dayText.setAttribute('class', 'chart-label');
       dayText.setAttribute('x', x + barW / 2);
       dayText.setAttribute('y', chartH - 5);
-      dayText.textContent = WEEK_LABELS[i];
+      dayText.textContent = item.label;
       svg.appendChild(dayText);
     });
   }
@@ -1118,7 +1103,13 @@
 
     const topMoodConfig = topMood ? MOOD_CONFIG[topMood] : null;
     const avgHydration = daysWithData > 0 ? (totalHydration / daysWithData).toFixed(1) : '0';
-    const bestDayLabel = bestDayIndex >= 0 ? WEEK_LABELS[bestDayIndex] : '—';
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    let bestDayLabel = '—';
+    if (bestDayIndex >= 0) {
+      const bestDate = new Date(now);
+      bestDate.setDate(bestDate.getDate() - (6 - bestDayIndex));
+      bestDayLabel = dayNames[bestDate.getDay()];
+    }
 
     return {
       totalHabitsCompleted,
