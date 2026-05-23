@@ -1,8 +1,8 @@
 /* ============================================================
    HAVEN — App Logic
    State management, habit CRUD, mood matrix, breathing guide,
-   hydration tracker, garden growth, analytics, tab navigation,
-   and swipe detection.
+   hydration tracker, garden growth, calendar, daily stats,
+   weekly insights, tab navigation, and swipe detection.
    ============================================================ */
 
 (() => {
@@ -11,7 +11,7 @@
   // ===================== CONSTANTS =====================
 
   const STORAGE_KEY = 'haven_state';
-  const TABS = ['mood', 'habits', 'breathe', 'insights'];
+  const TABS = ['habits', 'mood', 'breathe', 'insights'];
   const BREATHING_PHASE_DURATION = 4000; // 4 seconds per phase
   const BREATHING_TOTAL_DURATION = 60000; // 1 minute session
   const MAX_HYDRATION = 8;
@@ -54,6 +54,8 @@
     },
   };
 
+  const MOOD_KEYS = Object.keys(MOOD_CONFIG);
+
   const DEFAULT_HABITS = [
     { id: 1, name: 'Drink a glass of water', completed: false },
     { id: 2, name: '10 minutes of stretching', completed: false },
@@ -65,7 +67,46 @@
   // Mock weekly data for analytics
   const WEEK_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
+  // ===================== HELPERS =====================
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function dateKey(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
   // ===================== STATE =====================
+
+  function generateMockHistory() {
+    const history = {};
+    const moods = MOOD_KEYS;
+    const now = new Date();
+
+    for (let i = 1; i <= 30; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      const key = dateKey(d);
+
+      // Random but plausible data
+      const habitsTotal = 5;
+      const habitsCompleted = Math.floor(Math.random() * (habitsTotal + 1));
+      const hydration = Math.floor(Math.random() * 9); // 0-8
+      const mood = Math.random() > 0.15 ? moods[Math.floor(Math.random() * moods.length)] : null;
+      const completionPct = habitsTotal > 0 ? Math.round((habitsCompleted / habitsTotal) * 100) : 0;
+
+      history[key] = {
+        mood,
+        habitsCompleted,
+        habitsTotal,
+        hydration,
+        completionPct,
+      };
+    }
+    return history;
+  }
 
   function getDefaultState() {
     const today = new Date().toDateString();
@@ -73,10 +114,11 @@
       mood: null,
       habits: DEFAULT_HABITS.map(h => ({ ...h })),
       hydration: 0,
-      activeTab: 'mood',
+      activeTab: 'habits',
       lastDate: today,
       streakDays: 0,
       weeklyData: [65, 80, 45, 90, 70, 55, 0], // mock + today
+      dailyHistory: generateMockHistory(),
     };
   }
 
@@ -88,8 +130,24 @@
         // Reset habits if it's a new day
         const today = new Date().toDateString();
         if (parsed.lastDate !== today) {
-          const allDone = parsed.habits.length > 0 && parsed.habits.every(h => h.completed);
-          const someDone = parsed.habits.some(h => h.completed);
+          // Save yesterday's summary
+          const yesterdayDate = new Date();
+          yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+          const yKey = dateKey(yesterdayDate);
+
+          if (!parsed.dailyHistory) parsed.dailyHistory = {};
+          const total = parsed.habits ? parsed.habits.length : 0;
+          const done = parsed.habits ? parsed.habits.filter(h => h.completed).length : 0;
+          parsed.dailyHistory[yKey] = {
+            mood: parsed.mood,
+            habitsCompleted: done,
+            habitsTotal: total,
+            hydration: parsed.hydration || 0,
+            completionPct: total > 0 ? Math.round((done / total) * 100) : 0,
+          };
+
+          const allDone = total > 0 && done === total;
+          const someDone = done > 0;
           // Update streak
           if (allDone) {
             parsed.streakDays = (parsed.streakDays || 0) + 1;
@@ -97,13 +155,19 @@
             parsed.streakDays = 0;
           }
           // Shift weekly data
-          parsed.weeklyData = [...parsed.weeklyData.slice(1), 0];
+          parsed.weeklyData = [...(parsed.weeklyData || [0,0,0,0,0,0,0]).slice(1), 0];
           // Reset daily
           parsed.habits.forEach(h => h.completed = false);
           parsed.hydration = 0;
           parsed.mood = null;
           parsed.lastDate = today;
         }
+
+        // Ensure dailyHistory exists
+        if (!parsed.dailyHistory) {
+          parsed.dailyHistory = generateMockHistory();
+        }
+
         return parsed;
       }
     } catch (e) {
@@ -118,6 +182,21 @@
     } catch (e) {
       console.warn('Haven: Failed to save state', e);
     }
+  }
+
+  /** Snapshot current day into dailyHistory (called on every meaningful change) */
+  function snapshotToday() {
+    const key = todayKey();
+    const total = state.habits.length;
+    const done = state.habits.filter(h => h.completed).length;
+    if (!state.dailyHistory) state.dailyHistory = {};
+    state.dailyHistory[key] = {
+      mood: state.mood,
+      habitsCompleted: done,
+      habitsTotal: total,
+      hydration: state.hydration,
+      completionPct: total > 0 ? Math.round((done / total) * 100) : 0,
+    };
   }
 
   let state = loadState();
@@ -141,7 +220,7 @@
     });
 
     // Set initial tab
-    switchTab(state.activeTab || 'mood');
+    switchTab(state.activeTab || 'habits');
   }
 
   function switchTab(tabName) {
@@ -168,6 +247,12 @@
           section.classList.toggle('active', tab === tabName);
         }
       });
+    }
+
+    // Render insights on switch to that tab
+    if (tabName === 'insights') {
+      renderCalendar();
+      renderWeeklyInsights();
     }
   }
 
@@ -225,8 +310,10 @@
       block.addEventListener('click', () => {
         const mood = block.dataset.mood;
         state.mood = mood;
+        snapshotToday();
         saveState();
         renderMood();
+        renderDailyStats();
         applyMoodTheme(mood);
       });
     });
@@ -283,9 +370,11 @@
 
     state.habits.push({ id: nextHabitId++, name, completed: false });
     input.value = '';
+    snapshotToday();
     saveState();
     renderHabits();
     renderGarden();
+    renderDailyStats();
   }
 
   function toggleHabit(id) {
@@ -296,9 +385,11 @@
 
     // Update today's weekly data
     updateTodayScore();
+    snapshotToday();
     saveState();
     renderHabits();
     renderGarden();
+    renderDailyStats();
 
     // Particle pop on completion
     if (habit.completed) {
@@ -313,9 +404,11 @@
   function deleteHabit(id) {
     state.habits = state.habits.filter(h => h.id !== id);
     updateTodayScore();
+    snapshotToday();
     saveState();
     renderHabits();
     renderGarden();
+    renderDailyStats();
   }
 
   function updateTodayScore() {
@@ -355,6 +448,65 @@
     const pct = total > 0 ? (done / total) * 100 : 0;
     $('#habit-progress-fill').style.width = `${pct}%`;
     $('#habit-progress-text').textContent = `${done} / ${total} completed`;
+  }
+
+  // ===================== DAILY STATS =====================
+
+  function renderDailyStats() {
+    const container = $('#daily-stats');
+    if (!container) return;
+
+    const total = state.habits.length;
+    const done = state.habits.filter(h => h.completed).length;
+    const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+    const moodData = state.mood ? MOOD_CONFIG[state.mood] : null;
+    const hydrationPct = Math.round((state.hydration / MAX_HYDRATION) * 100);
+
+    container.innerHTML = `
+      <div class="daily-stats-grid">
+        <div class="stat-item stat-item--habits">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          </div>
+          <div class="stat-value">${done}<span class="stat-total">/${total}</span></div>
+          <div class="stat-label">Habits</div>
+          <div class="stat-mini-bar">
+            <div class="stat-mini-bar-fill" style="width: ${pct}%"></div>
+          </div>
+        </div>
+
+        <div class="stat-item stat-item--mood">
+          <div class="stat-icon stat-emoji">${moodData ? moodData.emoji : '💤'}</div>
+          <div class="stat-value">${moodData ? moodData.label : '—'}</div>
+          <div class="stat-label">Mood</div>
+          <div class="stat-mini-bar">
+            <div class="stat-mini-bar-fill stat-mini-bar-fill--mood" style="width: ${moodData ? '100' : '0'}%"></div>
+          </div>
+        </div>
+
+        <div class="stat-item stat-item--hydration">
+          <div class="stat-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+          </div>
+          <div class="stat-value">${state.hydration}<span class="stat-total">/${MAX_HYDRATION}</span></div>
+          <div class="stat-label">Glasses</div>
+          <div class="stat-mini-bar">
+            <div class="stat-mini-bar-fill stat-mini-bar-fill--hydration" style="width: ${hydrationPct}%"></div>
+          </div>
+        </div>
+
+        <div class="stat-item stat-item--completion">
+          <div class="stat-ring">
+            <svg viewBox="0 0 36 36">
+              <path class="stat-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+              <path class="stat-ring-fill" stroke-dasharray="${pct}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"/>
+            </svg>
+            <span class="stat-ring-text">${pct}%</span>
+          </div>
+          <div class="stat-label">Overall</div>
+        </div>
+      </div>
+    `;
   }
 
   // ===================== BREATHING GUIDE =====================
@@ -484,8 +636,10 @@
   function addWater() {
     if (state.hydration >= MAX_HYDRATION) return;
     state.hydration++;
+    snapshotToday();
     saveState();
     renderHydration();
+    renderDailyStats();
 
     // Small particle effect
     const btn = $('#btn-hydrate');
@@ -495,8 +649,10 @@
 
   function resetHydration() {
     state.hydration = 0;
+    snapshotToday();
     saveState();
     renderHydration();
+    renderDailyStats();
   }
 
   function renderHydration() {
@@ -621,21 +777,229 @@
     }
   }
 
-  // ===================== ANALYTICS =====================
+  // ===================== CALENDAR =====================
 
-  function renderAnalytics() {
+  let calendarMonth = new Date().getMonth();
+  let calendarYear = new Date().getFullYear();
+
+  function initCalendar() {
+    const prevBtn = $('#cal-prev');
+    const nextBtn = $('#cal-next');
+    if (prevBtn) prevBtn.addEventListener('click', () => { changeMonth(-1); });
+    if (nextBtn) nextBtn.addEventListener('click', () => { changeMonth(1); });
+  }
+
+  function changeMonth(delta) {
+    calendarMonth += delta;
+    if (calendarMonth < 0) {
+      calendarMonth = 11;
+      calendarYear--;
+    } else if (calendarMonth > 11) {
+      calendarMonth = 0;
+      calendarYear++;
+    }
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const monthLabel = $('#calendar-month-label');
+    const grid = $('#calendar-grid');
+    const detailEl = $('#calendar-day-detail');
+    if (!monthLabel || !grid) return;
+
+    const months = ['January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'];
+
+    monthLabel.textContent = `${months[calendarMonth]} ${calendarYear}`;
+
+    // First day of month
+    const firstDay = new Date(calendarYear, calendarMonth, 1);
+    const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
+    const daysInMonth = lastDay.getDate();
+
+    // Day of week for first day (0=Sun, adjust to Mon-start)
+    let startDow = firstDay.getDay();
+    startDow = startDow === 0 ? 6 : startDow - 1; // Mon=0 ... Sun=6
+
+    const todayStr = todayKey();
+    const history = state.dailyHistory || {};
+
+    grid.innerHTML = '';
+    if (detailEl) detailEl.innerHTML = '';
+    if (detailEl) detailEl.classList.remove('visible');
+
+    // Empty cells for offset
+    for (let i = 0; i < startDow; i++) {
+      const empty = document.createElement('div');
+      empty.className = 'calendar-cell calendar-cell--empty';
+      grid.appendChild(empty);
+    }
+
+    // Day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(calendarYear, calendarMonth, day);
+      const key = dateKey(d);
+      const isToday = key === todayStr;
+      const data = history[key];
+
+      const cell = document.createElement('button');
+      cell.className = 'calendar-cell' + (isToday ? ' calendar-cell--today' : '') + (data ? ' calendar-cell--has-data' : '');
+      cell.setAttribute('data-date', key);
+
+      let dotsHtml = '';
+      if (data) {
+        const dots = [];
+        if (data.habitsCompleted > 0) dots.push('<span class="cal-dot cal-dot--habit"></span>');
+        if (data.mood) dots.push('<span class="cal-dot cal-dot--mood"></span>');
+        if (data.hydration > 0) dots.push('<span class="cal-dot cal-dot--hydration"></span>');
+        dotsHtml = dots.join('');
+      }
+      // Also show today's live data
+      if (isToday) {
+        const dots = [];
+        const todayDone = state.habits.filter(h => h.completed).length;
+        if (todayDone > 0) dots.push('<span class="cal-dot cal-dot--habit"></span>');
+        if (state.mood) dots.push('<span class="cal-dot cal-dot--mood"></span>');
+        if (state.hydration > 0) dots.push('<span class="cal-dot cal-dot--hydration"></span>');
+        dotsHtml = dots.join('');
+      }
+
+      cell.innerHTML = `
+        <span class="cal-day-num">${day}</span>
+        <div class="cal-dots">${dotsHtml}</div>
+      `;
+
+      // Click to show detail
+      cell.addEventListener('click', () => showDayDetail(key, isToday));
+
+      grid.appendChild(cell);
+    }
+  }
+
+  function showDayDetail(key, isToday) {
+    const detailEl = $('#calendar-day-detail');
+    if (!detailEl) return;
+
+    let data;
+    if (isToday) {
+      const total = state.habits.length;
+      const done = state.habits.filter(h => h.completed).length;
+      data = {
+        mood: state.mood,
+        habitsCompleted: done,
+        habitsTotal: total,
+        hydration: state.hydration,
+        completionPct: total > 0 ? Math.round((done / total) * 100) : 0,
+      };
+    } else {
+      data = (state.dailyHistory || {})[key];
+    }
+
+    // Format date
+    const parts = key.split('-');
+    const dateObj = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+    if (!data) {
+      detailEl.innerHTML = `
+        <div class="day-detail-header">
+          <span class="day-detail-date">${dateStr}</span>
+          <button class="day-detail-close" aria-label="Close">✕</button>
+        </div>
+        <p class="day-detail-empty">No data recorded for this day</p>
+      `;
+    } else {
+      const moodConfig = data.mood ? MOOD_CONFIG[data.mood] : null;
+      detailEl.innerHTML = `
+        <div class="day-detail-header">
+          <span class="day-detail-date">${dateStr}${isToday ? ' <span class="day-detail-badge">Today</span>' : ''}</span>
+          <button class="day-detail-close" aria-label="Close">✕</button>
+        </div>
+        <div class="day-detail-grid">
+          <div class="day-detail-item">
+            <span class="day-detail-icon">${moodConfig ? moodConfig.emoji : '💤'}</span>
+            <span class="day-detail-value">${moodConfig ? moodConfig.label : 'Not logged'}</span>
+            <span class="day-detail-label">Mood</span>
+          </div>
+          <div class="day-detail-item">
+            <span class="day-detail-icon">✅</span>
+            <span class="day-detail-value">${data.habitsCompleted}/${data.habitsTotal}</span>
+            <span class="day-detail-label">Habits</span>
+          </div>
+          <div class="day-detail-item">
+            <span class="day-detail-icon">💧</span>
+            <span class="day-detail-value">${data.hydration}/${MAX_HYDRATION}</span>
+            <span class="day-detail-label">Water</span>
+          </div>
+          <div class="day-detail-item">
+            <span class="day-detail-icon">📊</span>
+            <span class="day-detail-value">${data.completionPct}%</span>
+            <span class="day-detail-label">Done</span>
+          </div>
+        </div>
+      `;
+    }
+
+    detailEl.classList.add('visible');
+
+    // Close button
+    const closeBtn = detailEl.querySelector('.day-detail-close');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        detailEl.classList.remove('visible');
+      });
+    }
+
+    // Highlight selected cell
+    $$('.calendar-cell').forEach(c => c.classList.remove('calendar-cell--selected'));
+    const selectedCell = $(`.calendar-cell[data-date="${key}"]`);
+    if (selectedCell) selectedCell.classList.add('calendar-cell--selected');
+  }
+
+  // ===================== WEEKLY INSIGHTS =====================
+
+  function renderWeeklyInsights() {
     // Streak
     const streakContainer = $('#streak-container');
     const streak = state.streakDays || 0;
-    streakContainer.innerHTML = `
-      <div class="streak-badge">
-        <span class="streak-fire">🔥</span>
-        <span class="streak-text">${streak} day${streak !== 1 ? 's' : ''} streak</span>
-      </div>
-    `;
+    if (streakContainer) {
+      streakContainer.innerHTML = `
+        <div class="streak-badge">
+          <span class="streak-fire">🔥</span>
+          <span class="streak-text">${streak} day${streak !== 1 ? 's' : ''} streak</span>
+        </div>
+      `;
+    }
+
+    // Weekly summary
+    const summaryContainer = $('#weekly-summary');
+    if (summaryContainer) {
+      const weekData = getWeekData();
+      summaryContainer.innerHTML = `
+        <div class="weekly-summary-grid">
+          <div class="weekly-stat">
+            <div class="weekly-stat-value">${weekData.totalHabitsCompleted}</div>
+            <div class="weekly-stat-label">Habits Done</div>
+          </div>
+          <div class="weekly-stat">
+            <div class="weekly-stat-value">${weekData.topMoodEmoji}</div>
+            <div class="weekly-stat-label">${weekData.topMoodLabel}</div>
+          </div>
+          <div class="weekly-stat">
+            <div class="weekly-stat-value">${weekData.avgHydration}</div>
+            <div class="weekly-stat-label">Avg. Glasses</div>
+          </div>
+          <div class="weekly-stat">
+            <div class="weekly-stat-value">${weekData.bestDayLabel}</div>
+            <div class="weekly-stat-label">Best Day</div>
+          </div>
+        </div>
+      `;
+    }
 
     // Weekly chart
     const svg = $('#chart-svg');
+    if (!svg) return;
     svg.innerHTML = '';
 
     const data = state.weeklyData || [0, 0, 0, 0, 0, 0, 0];
@@ -653,9 +1017,21 @@
       const barH = (val / maxVal) * barMaxH;
       const y = chartBottom - barH;
 
+      // Determine bar color class
+      let barClass = 'chart-bar';
+      if (i === 6) {
+        barClass += ' today';
+      } else if (val >= 70) {
+        barClass += ' chart-bar--high';
+      } else if (val >= 30) {
+        barClass += ' chart-bar--medium';
+      } else if (val > 0) {
+        barClass += ' chart-bar--low';
+      }
+
       // Bar
       const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-      rect.setAttribute('class', `chart-bar${i === 6 ? ' today' : ''}`);
+      rect.setAttribute('class', barClass);
       rect.setAttribute('x', x);
       rect.setAttribute('y', y);
       rect.setAttribute('width', barW);
@@ -682,6 +1058,75 @@
       dayText.textContent = WEEK_LABELS[i];
       svg.appendChild(dayText);
     });
+  }
+
+  /** Compute weekly stats from dailyHistory */
+  function getWeekData() {
+    const history = state.dailyHistory || {};
+    const now = new Date();
+    let totalHabitsCompleted = 0;
+    const moodCounts = {};
+    let totalHydration = 0;
+    let daysWithData = 0;
+    let bestDayPct = -1;
+    let bestDayIndex = -1;
+
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (6 - i)); // Mon..Sun if today is Sun
+      const key = dateKey(d);
+
+      let dayData;
+      if (key === todayKey()) {
+        // Live data for today
+        const total = state.habits.length;
+        const done = state.habits.filter(h => h.completed).length;
+        dayData = {
+          mood: state.mood,
+          habitsCompleted: done,
+          habitsTotal: total,
+          hydration: state.hydration,
+          completionPct: total > 0 ? Math.round((done / total) * 100) : 0,
+        };
+      } else {
+        dayData = history[key];
+      }
+
+      if (dayData) {
+        daysWithData++;
+        totalHabitsCompleted += dayData.habitsCompleted || 0;
+        totalHydration += dayData.hydration || 0;
+        if (dayData.mood) {
+          moodCounts[dayData.mood] = (moodCounts[dayData.mood] || 0) + 1;
+        }
+        if ((dayData.completionPct || 0) > bestDayPct) {
+          bestDayPct = dayData.completionPct || 0;
+          bestDayIndex = i;
+        }
+      }
+    }
+
+    // Top mood
+    let topMood = null;
+    let topMoodCount = 0;
+    for (const [mood, count] of Object.entries(moodCounts)) {
+      if (count > topMoodCount) {
+        topMoodCount = count;
+        topMood = mood;
+      }
+    }
+
+    const topMoodConfig = topMood ? MOOD_CONFIG[topMood] : null;
+    const avgHydration = daysWithData > 0 ? (totalHydration / daysWithData).toFixed(1) : '0';
+    const bestDayLabel = bestDayIndex >= 0 ? WEEK_LABELS[bestDayIndex] : '—';
+
+    return {
+      totalHabitsCompleted,
+      topMoodEmoji: topMoodConfig ? topMoodConfig.emoji : '—',
+      topMoodLabel: topMoodConfig ? `Top: ${topMoodConfig.label}` : 'No mood data',
+      avgHydration,
+      bestDayLabel,
+    };
   }
 
   // ===================== PARTICLES =====================
@@ -743,7 +1188,9 @@
     renderHabits();
     renderHydration();
     renderGarden();
-    renderAnalytics();
+    renderDailyStats();
+    renderCalendar();
+    renderWeeklyInsights();
   }
 
   function init() {
@@ -753,6 +1200,12 @@
     initHabits();
     initBreathing();
     initHydration();
+    initCalendar();
+
+    // Snapshot today on init
+    snapshotToday();
+    saveState();
+
     renderAll();
 
     // Resize handler

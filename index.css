@@ -33,6 +33,11 @@
   --mood-anxious: hsl(0, 72%, 58%);
   --mood-calm: hsl(160, 60%, 45%);
 
+  /* Calendar dot colors */
+  --cal-habit: #10b981;
+  --cal-mood: #fbbf24;
+  --cal-hydration: #38bdf8;
+
   /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -571,6 +576,146 @@ input {
   text-align: right;
 }
 
+/* ---------- Daily Stats ---------- */
+.daily-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.stat-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.stat-icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-icon svg {
+  width: 22px;
+  height: 22px;
+  stroke: var(--accent-emerald-light);
+}
+
+.stat-icon.stat-emoji {
+  font-size: 1.4rem;
+  width: auto;
+  height: auto;
+}
+
+.stat-item--habits .stat-icon svg {
+  stroke: var(--accent-emerald);
+}
+
+.stat-item--hydration .stat-icon svg {
+  stroke: var(--cal-hydration);
+}
+
+.stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.stat-total {
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+}
+
+.stat-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.stat-mini-bar {
+  width: 100%;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin-top: var(--space-xs);
+}
+
+.stat-mini-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-emerald), var(--accent-emerald-light));
+  border-radius: var(--radius-full);
+  transition: width var(--transition-smooth);
+}
+
+.stat-mini-bar-fill--mood {
+  background: linear-gradient(90deg, var(--accent-gold), var(--accent-gold-light));
+}
+
+.stat-mini-bar-fill--hydration {
+  background: linear-gradient(90deg, #0ea5e9, var(--cal-hydration));
+}
+
+/* Completion ring */
+.stat-item--completion {
+  justify-content: center;
+}
+
+.stat-ring {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stat-ring svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.stat-ring-bg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 3;
+}
+
+.stat-ring-fill {
+  fill: none;
+  stroke: var(--accent-emerald);
+  stroke-width: 3;
+  stroke-linecap: round;
+  transition: stroke-dasharray var(--transition-smooth);
+}
+
+.stat-ring-text {
+  position: absolute;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-emerald-light);
+}
+
 /* ---------- Breathing Guide ---------- */
 .breathing-container {
   display: flex;
@@ -809,6 +954,338 @@ input {
   text-align: center;
 }
 
+/* ---------- Calendar ---------- */
+.calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-md);
+}
+
+.calendar-nav-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.calendar-nav-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .calendar-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: var(--accent-emerald);
+  }
+}
+
+.calendar-month-label {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: var(--space-sm);
+}
+
+.calendar-weekdays span {
+  text-align: center;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  padding: var(--space-xs) 0;
+}
+
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.calendar-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  -webkit-tap-highlight-color: transparent;
+  padding: 4px 2px;
+}
+
+.calendar-cell--empty {
+  cursor: default;
+  background: transparent;
+}
+
+.calendar-cell--has-data {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.calendar-cell--today {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: var(--accent-emerald);
+}
+
+.calendar-cell--today .cal-day-num {
+  color: var(--accent-emerald-light);
+  font-weight: 700;
+}
+
+.calendar-cell--selected {
+  background: rgba(16, 185, 129, 0.2);
+  border-color: var(--accent-emerald-light);
+  transform: scale(0.95);
+}
+
+@media (hover: hover) {
+  .calendar-cell:not(.calendar-cell--empty):hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.12);
+  }
+}
+
+.cal-day-num {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.cal-dots {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  min-height: 6px;
+}
+
+.cal-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.cal-dot--habit {
+  background: var(--cal-habit);
+  box-shadow: 0 0 4px rgba(16, 185, 129, 0.5);
+}
+
+.cal-dot--mood {
+  background: var(--cal-mood);
+  box-shadow: 0 0 4px rgba(251, 191, 36, 0.5);
+}
+
+.cal-dot--hydration {
+  background: var(--cal-hydration);
+  box-shadow: 0 0 4px rgba(56, 189, 248, 0.5);
+}
+
+/* Calendar Legend */
+.calendar-legend {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  margin-top: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.legend-dot--habit {
+  background: var(--cal-habit);
+}
+
+.legend-dot--mood {
+  background: var(--cal-mood);
+}
+
+.legend-dot--hydration {
+  background: var(--cal-hydration);
+}
+
+/* Calendar Day Detail Popover */
+.calendar-day-detail {
+  display: none;
+  margin-top: var(--space-md);
+  padding: var(--space-md);
+  background: rgba(10, 45, 38, 0.65);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  border-radius: var(--radius-md);
+  animation: fadeSlideUp 0.3s ease-out;
+}
+
+.calendar-day-detail.visible {
+  display: block;
+}
+
+.day-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-md);
+}
+
+.day-detail-date {
+  font-family: 'Playfair Display', serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-detail-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  border-radius: var(--radius-full);
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--accent-emerald-light);
+  font-family: 'Inter', sans-serif;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+.day-detail-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  transition: all var(--transition-fast);
+}
+
+@media (hover: hover) {
+  .day-detail-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary);
+  }
+}
+
+.day-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+}
+
+.day-detail-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--space-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+}
+
+.day-detail-icon {
+  font-size: 1.1rem;
+}
+
+.day-detail-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-detail-label {
+  font-size: 0.6rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.day-detail-empty {
+  text-align: center;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  padding: var(--space-md);
+}
+
+/* ---------- Weekly Summary ---------- */
+.weekly-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.weekly-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: var(--space-md) var(--space-sm);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.weekly-stat:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.weekly-stat-value {
+  font-family: 'Playfair Display', serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.weekly-stat-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* ---------- Streak & Analytics ---------- */
 .streak-badge {
   display: inline-flex;
@@ -846,6 +1323,18 @@ input {
 
 .chart-bar.today {
   fill: var(--accent-emerald);
+}
+
+.chart-bar--high {
+  fill: rgba(16, 185, 129, 0.5);
+}
+
+.chart-bar--medium {
+  fill: rgba(251, 191, 36, 0.4);
+}
+
+.chart-bar--low {
+  fill: rgba(248, 113, 113, 0.4);
 }
 
 @media (hover: hover) {
@@ -1016,6 +1505,22 @@ input {
   .chart-container {
     height: 180px;
   }
+
+  .daily-stats-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .weekly-summary-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .day-detail-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .calendar-cell {
+    min-height: 52px;
+  }
 }
 
 /* ============================================================
@@ -1094,6 +1599,10 @@ input {
 
   .card {
     margin-bottom: var(--space-lg);
+  }
+
+  .calendar-cell {
+    min-height: 56px;
   }
 }
 
