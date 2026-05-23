@@ -19,29 +19,33 @@
 
   <!-- ===== HEADER ===== -->
   <header class="app-header" id="app-header">
-    <h1>🌿 Haven</h1>
-    <p class="subtitle">Your ambient wellness companion</p>
-  </header>
+    <div class="header-container">
+      <div class="header-brand">
+        <h1>🌿 Haven</h1>
+        <p class="subtitle">Your ambient wellness companion</p>
+      </div>
 
-  <!-- ===== DESKTOP NAV (hidden on mobile) ===== -->
-  <nav class="desktop-nav" id="desktop-nav" aria-label="Main navigation">
-    <button class="tab-btn active" data-tab="habits" id="desktop-tab-habits">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
-      <span>Home</span>
-    </button>
-    <button class="tab-btn" data-tab="mood" id="desktop-tab-mood">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
-      <span>Daily</span>
-    </button>
-    <button class="tab-btn" data-tab="breathe" id="desktop-tab-breathe">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c-4-3-8-6-8-11a8 8 0 0 1 16 0c0 5-4 8-8 11z"/></svg>
-      <span>Breathe</span>
-    </button>
-    <button class="tab-btn" data-tab="insights" id="desktop-tab-insights">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-      <span>Insights</span>
-    </button>
-  </nav>
+      <!-- ===== DESKTOP NAV (hidden on mobile) ===== -->
+      <nav class="desktop-nav" id="desktop-nav" aria-label="Main navigation">
+        <button class="tab-btn active" data-tab="habits" id="desktop-tab-habits">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="m9 12 2 2 4-4"/></svg>
+          <span>Home</span>
+        </button>
+        <button class="tab-btn" data-tab="mood" id="desktop-tab-mood">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>
+          <span>Daily</span>
+        </button>
+        <button class="tab-btn" data-tab="breathe" id="desktop-tab-breathe">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22c-4-3-8-6-8-11a8 8 0 0 1 16 0c0 5-4 8-8 11z"/></svg>
+          <span>Breathe</span>
+        </button>
+        <button class="tab-btn" data-tab="insights" id="desktop-tab-insights">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+          <span>Insights</span>
+        </button>
+      </nav>
+    </div>
+  </header>
 
   <!-- ===== MAIN CONTENT ===== -->
   <main class="app-main" id="app-main">

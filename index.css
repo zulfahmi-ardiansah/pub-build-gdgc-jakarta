@@ -193,6 +193,19 @@ input:focus-visible {
   transition: padding var(--transition-smooth), background-color var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
 }
 
+.header-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.header-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
 .app-header h1 {
   font-size: 1.85rem;
   background: linear-gradient(135deg, var(--accent-emerald-light) 30%, var(--accent-gold-light) 100%);
@@ -1761,42 +1774,63 @@ input:focus-visible {
   h1 { font-size: 2.4rem; }
 
   .app-header {
+    position: sticky;
+    top: 0;
+    z-index: 80;
+    background: rgba(9, 28, 23, 0.75);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding: var(--space-md) var(--space-xl);
-    position: relative;
-    background: transparent;
-    border-bottom: none;
+    max-width: none;
+    margin: 0;
     display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+
+  .header-container {
+    display: flex;
+    flex-direction: row;
     justify-content: space-between;
     align-items: center;
+    width: 100%;
     max-width: 1280px;
-    margin: 0 auto;
+  }
+
+  .header-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    text-align: left;
   }
 
   .app-header h1 {
     font-size: 2.1rem;
+    transition: font-size var(--transition-smooth);
   }
 
   .app-header .subtitle {
     margin-top: 0;
   }
 
-  /* Reset scrolled overrides on static desktop header */
+  /* Compact scrolled state on sticky desktop header */
   .app-header.scrolled {
-    padding: var(--space-md) var(--space-xl);
-    background: transparent;
-    border-bottom: none;
-    box-shadow: none;
+    padding: var(--space-sm) var(--space-xl);
+    background: rgba(6, 20, 16, 0.92);
+    border-bottom-color: rgba(16, 185, 129, 0.18);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
   }
 
   .app-header.scrolled h1 {
-    font-size: 2.1rem;
+    font-size: 1.6rem;
   }
 
   .app-header.scrolled .subtitle {
-    opacity: 1;
-    max-height: 24px;
+    opacity: 0;
+    max-height: 0;
     margin-top: 0;
-    transform: none;
+    transform: translateY(-8px);
   }
 
   /* Hide mobile floating bottom tab bar on desktop */
@@ -1838,16 +1872,29 @@ input:focus-visible {
   /* Layout Adjustments for Desktop grid placing */
   #section-habits {
     grid-column: 1;
+    grid-row: 1;
   }
   #section-mood {
     grid-column: 2;
+    grid-row: 1;
   }
   #section-breathe {
     grid-column: 3;
+    grid-row: 1;
   }
-  /* Insights sits below Habits on the left or spans appropriately, let's stack nicely */
+  /* Insights is rendered in display: contents so its children participate in the grid directly */
   #section-insights {
-    grid-column: 2;
+    display: contents !important;
+  }
+  /* Calendar card spans the first two columns in the second row */
+  #card-calendar {
+    grid-column: 1 / span 2;
+    grid-row: 2;
+  }
+  /* Weekly Insights card sits in the third column in the second row */
+  #card-weekly {
+    grid-column: 3;
+    grid-row: 2;
   }
 
   /* Desktop Header Pills Navigation */
@@ -1910,7 +1957,7 @@ input:focus-visible {
    LARGE DESKTOP (≥1440px)
    ============================================================ */
 @media (min-width: 1440px) {
-  .app-header,
+  .header-container,
   .app-main {
     max-width: 1400px;
   }
