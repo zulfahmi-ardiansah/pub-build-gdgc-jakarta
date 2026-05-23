@@ -235,6 +235,81 @@
             <svg id="chart-svg" width="100%" height="100%" viewBox="0 0 350 160" preserveAspectRatio="xMidYMid meet"></svg>
           </div>
         </div>
+
+        <!-- Sage AI Wellness Companion Card -->
+        <div class="card stagger-3" id="card-ai-insights">
+          <div class="ai-header">
+            <div class="ai-header-main">
+              <div class="ai-avatar-wrapper">
+                <svg class="ai-avatar-svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent-emerald-light)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                  <circle cx="12" cy="12" r="4" fill="var(--accent-emerald)" opacity="0.3"/>
+                </svg>
+                <div class="ai-avatar-glow"></div>
+              </div>
+              <div class="ai-brand-group">
+                <h2 class="card-title ai-title">Sage AI Wellness Companion</h2>
+                <div class="ai-status-row">
+                  <span class="ai-status-dot" id="ai-status-dot"></span>
+                  <span class="ai-status-text" id="ai-status-text">Simulated Mode</span>
+                </div>
+              </div>
+            </div>
+            
+            <button class="ai-settings-toggle" id="ai-settings-toggle" aria-label="Toggle API Key Settings">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.5 1z"/></svg>
+            </button>
+          </div>
+
+          <!-- API Settings Drawer (hidden by default) -->
+          <div class="ai-settings-drawer" id="ai-settings-drawer">
+            <p class="settings-desc">Enter your Google Gemini API Key below to activate live, personalized cognitive coaching powered by <strong>gemini-2.5-flash</strong>.</p>
+            <div class="settings-input-row">
+              <input type="password" id="gemini-api-key-input" class="settings-input" placeholder="Paste Gemini API Key..." />
+              <button class="settings-save-btn" id="btn-save-api-key">Save Key</button>
+            </div>
+            <p class="settings-status-note" id="settings-status-note"></p>
+          </div>
+
+          <!-- Wellness Summary Dashboard -->
+          <div class="ai-body">
+            <!-- Tone selector chips -->
+            <div class="ai-tone-selector">
+              <span class="tone-label">Guide Tone:</span>
+              <div class="tone-chips">
+                <button class="tone-chip active" data-tone="zen">🍃 Zen Master</button>
+                <button class="tone-chip" data-tone="strategist">🎯 Strategist</button>
+                <button class="tone-chip" data-tone="cheerleader">🎉 Cheerleader</button>
+              </div>
+            </div>
+
+            <!-- Report Card content -->
+            <div class="ai-report-container">
+              <div class="ai-report-bubble">
+                <div class="ai-report-header">
+                  <span class="report-meta-title">✨ Daily Summary &amp; Analytics</span>
+                  <button class="btn-refresh-report" id="btn-refresh-report" aria-label="Refresh report">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                    Refresh
+                  </button>
+                </div>
+                <div class="ai-report-text-wrapper">
+                  <p class="ai-report-text" id="ai-report-text">Click Refresh to generate your ambient wellness summary.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div class="ai-recommendations-section">
+              <h3 class="recommendations-title">Sage Daily Recommendations</h3>
+              <div class="ai-recommendations-grid" id="ai-recommendations-grid">
+                <!-- Will be dynamically populated -->
+                <div class="ai-recommendation-placeholder">Complete today's logs or add your API Key to populate.</div>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </section>
 
     </div><!-- /.sections-wrapper -->

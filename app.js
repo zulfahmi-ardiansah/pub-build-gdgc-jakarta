@@ -81,14 +81,48 @@
 
   function getDefaultState() {
     const today = new Date().toDateString();
+    
+    // Pre-complete first 3 habits today for immediate garden growth representation
+    const seededHabits = DEFAULT_HABITS.map((h, idx) => ({
+      ...h,
+      completed: idx < 3
+    }));
+
+    // Generate dynamic history for the past 6 days relative to today's local date
+    const dailyHistory = {};
+    const now = new Date();
+
+    const mockData = [
+      { offset: 6, mood: 'calm', done: 4, water: 6 },
+      { offset: 5, mood: 'focused', done: 5, water: 8 },
+      { offset: 4, mood: 'tired', done: 3, water: 4 },
+      { offset: 3, mood: 'radiant', done: 5, water: 7 },
+      { offset: 2, mood: 'calm', done: 4, water: 6 },
+      { offset: 1, mood: 'anxious', done: 2, water: 5 }
+    ];
+
+    mockData.forEach(item => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - item.offset);
+      const key = dateKey(d);
+
+      dailyHistory[key] = {
+        mood: item.mood,
+        habitsCompleted: item.done,
+        habitsTotal: 5,
+        hydration: item.water,
+        completionPct: Math.round((item.done / 5) * 100)
+      };
+    });
+
     return {
-      mood: null,
-      habits: DEFAULT_HABITS.map(h => ({ ...h })),
-      hydration: 0,
-      activeTab: 'habits',
+      mood: 'focused',      // Pre-fill today's mood as Focused
+      habits: seededHabits,
+      hydration: 5,        // Pre-fill today's hydration at 5 glasses
+      activeTab: 'insights', // Open Insights tab by default to show off Sage instantly!
       lastDate: today,
-      streakDays: 0,
-      dailyHistory: {},
+      streakDays: 3,       // Seed a 3-day wellness streak
+      dailyHistory: dailyHistory,
     };
   }
 
@@ -96,7 +130,14 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const parsed = JSON.parse(raw);
+        let parsed = JSON.parse(raw);
+        
+        // Seeding trigger: if dailyHistory has no entries, pre-populate with our gorgeous dataset
+        if (!parsed.dailyHistory || Object.keys(parsed.dailyHistory).length === 0) {
+          const defaultState = getDefaultState();
+          parsed = { ...parsed, ...defaultState };
+        }
+
         // Reset habits if it's a new day
         const today = new Date().toDateString();
         if (parsed.lastDate !== today) {
@@ -222,6 +263,9 @@
     if (tabName === 'insights') {
       renderCalendar();
       renderWeeklyInsights();
+      if (typeof generateSageReport === 'function') {
+        generateSageReport();
+      }
     }
   }
 
@@ -468,6 +512,13 @@
         </div>
       </div>
     `;
+
+    // Keep recommendations sync state clean and updated
+    if (typeof sageState !== 'undefined' && sageState.lastGeneratedReport && !sageState.isGenerating) {
+      if (typeof renderRecommendationCards === 'function') {
+        renderRecommendationCards(sageState.lastGeneratedReport.recommendations);
+      }
+    }
   }
 
   // ===================== BREATHING GUIDE =====================
@@ -1156,6 +1207,499 @@
     }
   }
 
+  // ===================== SAGE AI COMPANION SYSTEM =====================
+
+  const SAGE_API_KEY_STORAGE = 'haven_gemini_api_key';
+
+  let sageState = {
+    apiKey: localStorage.getItem(SAGE_API_KEY_STORAGE) || '',
+    tone: 'zen',
+    isGenerating: false,
+    lastGeneratedReport: null
+  };
+
+  const SAGE_SIMULATED_REPORTS = {
+    zen: {
+      radiant: {
+        summary: "Like the warm midday sun clearing the forest mist, your radiant heart shines brightly today. Your energy is a gift to those around you—cradle this joy and share its warmth, but remain grounded in quiet presence.",
+        recs: [
+          { category: "mind", text: "Spend 5 minutes basking in natural daylight, doing absolutely nothing.", habitName: "5 min sunlight pause" },
+          { category: "body", text: "Walk barefoot on grass or stretch toward the sky like a willow tree.", habitName: "Barefoot ground walk" },
+          { category: "spirit", text: "Send a note of deep appreciation to someone who sparks your light.", habitName: "Send appreciation note" }
+        ]
+      },
+      focused: {
+        summary: "Your mind is like a clear mountain stream today—swift, clean, and carrying a single, powerful direction. Direct this channel of focus toward what truly matters, but let your eyes rest periodically on the green canopy.",
+        recs: [
+          { category: "mind", text: "Take 10 conscious slow breaths between tasks to maintain center.", habitName: "10 deep task breaths" },
+          { category: "body", text: "Perform a gentle 3-minute seated spinal twist to unlock energy.", habitName: "3 min seated twist" },
+          { category: "spirit", text: "Write down the single most important contribution you wish to make today.", habitName: "Define core goal" }
+        ]
+      },
+      tired: {
+        summary: "The winter forest rests beneath a blanket of snow, and so must you. Honor the gentle heaviness in your eyelids. Rest is not a weakness; it is the silent wellspring from which all future blooms gather their strength.",
+        recs: [
+          { category: "mind", text: "Close your eyes for 10 minutes and listen to box-breathing rhythm.", habitName: "10 min sensory rest" },
+          { category: "body", text: "Drink a warm cup of herbal tea slowly, feeling the cup's heat.", habitName: "Warm herbal tea pause" },
+          { category: "spirit", text: "Release yourself from all expectations for the next hour.", habitName: "Release expectations" }
+        ]
+      },
+      anxious: {
+        summary: "Winds shake the branches, but the roots hold firm. Your anxious waves are merely weather passing across the sky of your consciousness. Breathe slowly, drop your shoulders, and feel the solid ground beneath you.",
+        recs: [
+          { category: "mind", text: "Do 2 minutes of box breathing now, focusing strictly on count.", habitName: "2 min box breathing" },
+          { category: "body", text: "Release tension in your jaw and drop shoulders down three times.", habitName: "Jaw & shoulder release" },
+          { category: "spirit", text: "Name five things you can see, four you can touch, and three you can hear.", habitName: "5-4-3-2-1 grounding" }
+        ]
+      },
+      calm: {
+        summary: "Like a quiet pool reflecting the ancient pines, your spirit rests in perfect alignment. You have reached a beautiful, balanced state of flow. Move through the rest of your day with this soft, rhythmic step.",
+        recs: [
+          { category: "mind", text: "Sit in silence for 5 minutes, observing thoughts like floating leaves.", habitName: "5 min silent sitting" },
+          { category: "body", text: "Massage your temples and neck slowly with circular motions.", habitName: "Gentle temple massage" },
+          { category: "spirit", text: "Write down three blessings currently gracing your life.", habitName: "Log 3 daily blessings" }
+        ]
+      },
+      default: {
+        summary: "Every day is a fresh sprout in your garden of wellness. Take a slow breath, evaluate where your energy is pool-ing, and let Sage help you nurture your micro-steps toward balance.",
+        recs: [
+          { category: "mind", text: "Take three deep, belly-expanding breaths right now.", habitName: "3 deep belly breaths" },
+          { category: "body", text: "Stand up and stretch your arms high above your head.", habitName: "Arm-reach stretch" },
+          { category: "spirit", text: "Drink a full glass of cool water mindfully.", habitName: "Drink mindful water" }
+        ]
+      }
+    },
+    strategist: {
+      radiant: {
+        summary: "High energy detected. This is the optimal state to execute complex goals and expand your active habits. Capitalize on this positive wave by solidifying your routine and pre-planning high-friction tasks.",
+        recs: [
+          { category: "mind", text: "Map out your three main objectives for tomorrow to offload mental load.", habitName: "Map next-day goals" },
+          { category: "body", text: "Complete a brisk 15-minute walk at a fast, aerobic pace.", habitName: "15 min brisk walk" },
+          { category: "spirit", text: "Document your high-energy triggers to replicate this state later.", habitName: "Log energy triggers" }
+        ]
+      },
+      focused: {
+        summary: "Cognitive performance is at a peak. Your focus state is a premium asset—protect it from incoming notifications and sensory pollution. Work in structured blocks and implement clear milestones.",
+        recs: [
+          { category: "mind", text: "Block all incoming digital distractions for a 30-minute sprint.", habitName: "30 min deep focus sprint" },
+          { category: "body", text: "Stand up and walk for 2 minutes for every 45 minutes of sitting.", habitName: "Active desk-break check" },
+          { category: "spirit", text: "Conduct a 5-minute review of your weekly progress habits.", habitName: "5 min progress audit" }
+        ]
+      },
+      tired: {
+        summary: "Fatigue indicator is high. Pushing through will trigger diminishing returns and compromise decision-making. Your optimal strategy is tactical rest. Schedule a screen-free recovery interval immediately.",
+        recs: [
+          { category: "mind", text: "Remove blue-light exposure for the next 20 minutes.", habitName: "20 min digital detox" },
+          { category: "body", text: "Consume 300ml of water to counter dehydration-induced fatigue.", habitName: "Hydration energy boost" },
+          { category: "spirit", text: "De-prioritize low-value tasks to conserve remaining energy.", habitName: "Conserve daily energy" }
+        ]
+      },
+      anxious: {
+        summary: "System overwhelm detected. Cortisol is elevated, disrupting executive focus. You must down-regulate your nervous system using somatic techniques. Reduce sensory inputs and clear your task list.",
+        recs: [
+          { category: "mind", text: "Apply the 80/20 rule: identify the ONE task causing anxiety and pause it.", habitName: "Isolate anxiety trigger" },
+          { category: "body", text: "Extend your exhalations to double the length of your inhales for 2 minutes.", habitName: "Vagus nerve breathwork" },
+          { category: "spirit", text: "Write down all swirling thoughts on a physical paper to brain-dump.", habitName: "Brain dump reflection" }
+        ]
+      },
+      calm: {
+        summary: "Balanced state achieved. Excellent window for forming high-integrity neural pathways. Streaks are maintained best when energy is neutral and stable. Plan sustainable adjustments to your habits.",
+        recs: [
+          { category: "mind", text: "Read a technical or educational chapter for 15 minutes.", habitName: "15 min knowledge intake" },
+          { category: "body", text: "Stretch hamstrings, calves, and hip flexors for 5 minutes.", habitName: "5 min flexibility sweep" },
+          { category: "spirit", text: "Organize your active workspace for a frictionless start tomorrow.", habitName: "Frictionless workspace set" }
+        ]
+      },
+      default: {
+        summary: "Productivity requires structured wellness. Review your metrics: habits, hydration, and mood. Adjust your micro-habit garden to build an optimal compounding routine.",
+        recs: [
+          { category: "mind", text: "Do a 5-minute mental review of your daily hydration logs.", habitName: "Audit hydration pace" },
+          { category: "body", text: "Stand and roll your ankles and wrists in circles.", habitName: "Joint mobility roll" },
+          { category: "spirit", text: "Clear three unnecessary icons from your desktop screen.", habitName: "Digital clutter clean" }
+        ]
+      }
+    },
+    cheerleader: {
+      radiant: {
+        summary: "Woohoo! Look at that gorgeous sunshine! ☀️ You are absolutely glowing today! Your energy is literal magic. Let's bottle up this amazing feeling and crush those goals while keeping that beautiful smile going strong!",
+        recs: [
+          { category: "mind", text: "Celebrate your radiant mood by dancing to your favorite song!", habitName: "1 song dance break" },
+          { category: "body", text: "Step outside and do 10 energetic jumping jacks!", habitName: "10 power jumping jacks" },
+          { category: "spirit", text: "Give someone nearby (or online) a massive, genuine compliment!", habitName: "Share a huge compliment" }
+        ]
+      },
+      focused: {
+        summary: "You are in the ZONE! 🎯 Absolute superstar status achieved! That focused energy is unstoppable. Turn off notifications and let's watch you make magic happen today! You've got this, let's go!",
+        recs: [
+          { category: "mind", text: "Crush a 20-minute chunk of work and high-five yourself!", habitName: "20 min focus victory" },
+          { category: "body", text: "Do a victory stretch! Reach for the stars! 🌟", habitName: "Star-reach stretch pause" },
+          { category: "spirit", text: "Write down one thing you are super proud of achieving today.", habitName: "Write proud win" }
+        ]
+      },
+      tired: {
+        summary: "Aww, sending you the biggest warm hug! 🤗 Your battery is low, and that is 100% okay! You have worked so hard. It is time to treat yourself to some delicious rest and recharge that beautiful light of yours!",
+        recs: [
+          { category: "mind", text: "Cozy up under a blanket for a 10-minute pure resting pause.", habitName: "10 min cozy reset" },
+          { category: "body", text: "Chug a refreshing glass of ice-cold water to wake up your cells!", habitName: "Ice water cell awaken" },
+          { category: "spirit", text: "Tell yourself in the mirror: 'I am doing great, and I deserve rest.'", habitName: "Mirror positive self-talk" }
+        ]
+      },
+      anxious: {
+        summary: "Take a deep breath in... and let it go. You are safe, you are strong, and you've got this! 💖 Don't worry about the big picture right now. Just focus on this exact second. I'm cheering you on every step of the way!",
+        recs: [
+          { category: "mind", text: "Close your eyes and breathe with Haven't circle for 3 cycles.", habitName: "3 conscious wave breaths" },
+          { category: "body", text: "Shake out your hands and wiggle your toes to release nervous energy!", habitName: "Shake out jitters" },
+          { category: "spirit", text: "List 3 tiny things that made you smile this week. You're doing great!", habitName: "3 tiny smiles recall" }
+        ]
+      },
+      calm: {
+        summary: "Ah, absolute bliss! 🍃 You are matching the serene forest vibe perfectly! This calm energy is a total superpower. Enjoy this beautiful flow, take slow steps, and celebrate this gorgeous peace!",
+        recs: [
+          { category: "mind", text: "Sit quietly and listen to ambient nature sounds for 5 minutes.", habitName: "5 min ambient nature pause" },
+          { category: "body", text: "Do three slow, luxurious neck rolls in each direction.", habitName: "3 luxury neck rolls" },
+          { category: "spirit", text: "Smile warmly at yourself or the sky, feeling absolute peace.", habitName: "Peaceful sky smile" }
+        ]
+      },
+      default: {
+        summary: "Yay! Today is a brand new adventure! Let's grow that habit garden, drink some refreshing water, and see what wonderful logs we can add! You're doing amazing!",
+        recs: [
+          { category: "mind", text: "Set a positive intention for the rest of your day.", habitName: "Set daily positive intent" },
+          { category: "body", text: "Do a 2-minute energizing stretch right now!", habitName: "2 min cheer stretch" },
+          { category: "spirit", text: "Take a big, fresh sip of water and celebrate your growth!", habitName: "Celebrate growth sip" }
+        ]
+      }
+    }
+  };
+
+
+
+  function initSage() {
+    // Settings panel drawer toggle
+    const toggleBtn = $('#ai-settings-toggle');
+    const drawer = $('#ai-settings-drawer');
+    const keyInput = $('#gemini-api-key-input');
+    const saveBtn = $('#btn-save-api-key');
+
+    if (toggleBtn && drawer) {
+      toggleBtn.addEventListener('click', () => {
+        toggleBtn.classList.toggle('active');
+        drawer.classList.toggle('active');
+      });
+    }
+
+    // Populate existing key in input
+    if (keyInput) {
+      keyInput.value = sageState.apiKey;
+    }
+
+    // Save key button listener
+    if (saveBtn && keyInput) {
+      saveBtn.addEventListener('click', () => {
+        const val = keyInput.value.trim();
+        sageState.apiKey = val;
+        if (val) {
+          localStorage.setItem(SAGE_API_KEY_STORAGE, val);
+          showApiKeyStatus("API Key saved successfully! Sage is now in live mode.", "success");
+        } else {
+          localStorage.removeItem(SAGE_API_KEY_STORAGE);
+          showApiKeyStatus("API Key cleared. Sage is now in simulated mode.", "success");
+        }
+        updateSageUiStatus();
+        generateSageReport(true); // Re-generate report on key changes
+      });
+    }
+
+    // Tone chip selectors
+    $$('.tone-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        $$('.tone-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        sageState.tone = chip.dataset.tone;
+        generateSageReport(); // Re-generate report with new tone
+      });
+    });
+
+    // Refresh report button
+    const refreshBtn = $('#btn-refresh-report');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        generateSageReport(true);
+      });
+    }
+
+
+
+    // Initial load updates
+    updateSageUiStatus();
+    generateSageReport();
+  }
+
+  function showApiKeyStatus(msg, type) {
+    const note = $('#settings-status-note');
+    if (!note) return;
+    note.textContent = msg;
+    note.className = 'settings-status-note ' + type;
+    setTimeout(() => {
+      note.textContent = '';
+      note.className = 'settings-status-note';
+    }, 4000);
+  }
+
+  function updateSageUiStatus() {
+    const dot = $('#ai-status-dot');
+    const text = $('#ai-status-text');
+    if (!dot || !text) return;
+
+    if (sageState.apiKey) {
+      dot.classList.add('live');
+      text.textContent = 'Gemini Live';
+    } else {
+      dot.classList.remove('live');
+      text.textContent = 'Simulated Mode';
+    }
+  }
+
+
+
+  /** Construct prompt context */
+  function getWellnessPromptContext() {
+    const today = new Date().toDateString();
+    const moodLabel = state.mood ? MOOD_CONFIG[state.mood].label : 'None logged';
+    const habitsCompleted = state.habits.filter(h => h.completed).length;
+    const habitsTotal = state.habits.length;
+    const water = state.hydration;
+    const habitNames = state.habits.map(h => `- ${h.name} (${h.completed ? 'Completed' : 'Pending'})`).join('\n');
+
+    return `
+You are 'Sage', a nature-inspired, elegant AI wellness companion for 'Haven', a beautiful client-side habit tracker.
+Today's date: ${today}
+User's logged mood: ${moodLabel} (Selected key: ${state.mood || 'none'})
+Water intake: ${water} of ${MAX_HYDRATION} glasses
+Micro-Habits progress: ${habitsCompleted} completed out of ${habitsTotal} total.
+Habits list:
+${habitNames || 'No habits added yet.'}
+
+Coaching tone requested: ${sageState.tone} (zen = poetic, serene, atmospheric; strategist = data-driven, focus-oriented, optimized; cheerleader = super high-energy, celebratory, warm, positive).
+
+Task:
+Generate a beautiful daily summary and three personalized recommendations.
+1. The 'summary' must be a single paragraph (approx 3-4 sentences) evaluating today's logs, checking off positive gains and encouraging where they are lagging (like hydration or pending habits). Maintain the exact coaching tone requested.
+2. Provide three actionable 'recommendations' inside a JSON array:
+   - One for 'mind' (mindfulness, box breathing, focus pacing)
+   - One for 'body' (stretching, mobility, hydration, short walk)
+   - One for 'spirit' (gratitude, nature connections, self-reflection, offscreen breaks)
+   - Each recommendation must have a short, concise description ('text') and a 2-4 word direct actionable 'habitName' that matches the recommendation and can be added as a daily habit to their checklist (e.g. '5 min breathing check-in' or 'Stretch shoulders'). Make the habitName beautiful and clean!
+
+You MUST return a JSON object ONLY. Do not wrap the JSON in markdown blocks or include backticks. The schema must match:
+{
+  "summary": "...",
+  "recommendations": [
+    {"category": "mind", "text": "...", "habitName": "..."},
+    {"category": "body", "text": "...", "habitName": "..."},
+    {"category": "spirit", "text": "...", "habitName": "..."}
+  ]
+}
+`;
+  }
+
+  /** Generate dynamic wellness summary and recommendations */
+  async function generateSageReport(forceRefresh = false) {
+    if (sageState.isGenerating) return;
+
+    // Check if we already have a generated report today, unless force refreshing
+    const reportTextEl = $('#ai-report-text');
+    if (!reportTextEl) return;
+
+    // Display loading state
+    sageState.isGenerating = true;
+    reportTextEl.innerHTML = `
+      <div class="sage-loading-pulse">
+        <span style="font-size: 0.8rem; color: var(--text-muted); margin-right: 8px;">Sage is meditating...</span>
+        <div class="sage-loading-dot"></div>
+        <div class="sage-loading-dot"></div>
+        <div class="sage-loading-dot"></div>
+      </div>
+    `;
+
+    const recsGrid = $('#ai-recommendations-grid');
+    if (recsGrid) {
+      recsGrid.innerHTML = `
+        <div class="ai-recommendation-placeholder">Analyzing state details...</div>
+      `;
+    }
+
+    let reportData = null;
+
+    if (sageState.apiKey) {
+      // Live Gemini Flash Call
+      try {
+        const prompt = getWellnessPromptContext();
+        reportData = await fetchGeminiReportData(prompt);
+      } catch (err) {
+        console.warn("Sage live report failed, falling back to simulation:", err);
+        reportData = getSimulatedReportData();
+      }
+    } else {
+      // Simulated delay
+      await new Promise(resolve => setTimeout(resolve, 600));
+      reportData = getSimulatedReportData();
+    }
+
+    sageState.isGenerating = false;
+    sageState.lastGeneratedReport = reportData;
+
+    // Render report summary with a typewriter effect
+    typewriteText(reportData.summary, reportTextEl);
+
+    // Render recommendation cards
+    renderRecommendationCards(reportData.recommendations);
+  }
+
+  /** Fallback data builder for simulated mode */
+  function getSimulatedReportData() {
+    const tone = sageState.tone || 'zen';
+    const mood = state.mood || 'default';
+    const toneDict = SAGE_SIMULATED_REPORTS[tone] || SAGE_SIMULATED_REPORTS['zen'];
+    const data = toneDict[mood] || toneDict['default'];
+
+    return {
+      summary: data.summary,
+      recommendations: data.recs
+    };
+  }
+
+  /** Renders recommendation cards and hooks up adding them to checklist */
+  function renderRecommendationCards(recs) {
+    const grid = $('#ai-recommendations-grid');
+    if (!grid || !recs || recs.length === 0) return;
+
+    grid.innerHTML = recs.map(rec => {
+      const catLabel = rec.category.toUpperCase();
+      const catClass = rec.category === 'mind' ? 'rec-badge--mind' : rec.category === 'body' ? 'rec-badge--body' : 'rec-badge--spirit';
+      const btnClass = rec.category === 'mind' ? 'btn-add-rec-habit--mind' : rec.category === 'body' ? 'btn-add-rec-habit--body' : 'btn-add-rec-habit--spirit';
+
+      // Escape names for attribute insertion
+      const escapedHabitName = rec.habitName.replace(/'/g, "\\'");
+      const hasHabit = state.habits.some(h => h.name.toLowerCase() === rec.habitName.toLowerCase());
+
+      return `
+        <div class="ai-recommendation-card">
+          <div style="display: flex; flex-direction: column; gap: var(--space-xs);">
+            <span class="rec-badge ${catClass}">${catLabel}</span>
+            <p class="rec-text">${escapeHtml(rec.text)}</p>
+          </div>
+          <button class="btn-add-rec-habit ${btnClass}" ${hasHabit ? 'disabled style="opacity: 0.5; cursor: default;"' : `onclick="window.__haven.addSageRecommendation('${escapedHabitName}')"`}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="12" height="12"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            ${hasHabit ? 'Added' : 'Add to Habits'}
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  /** Click handler to add recommendation as an active habit */
+  function addSageRecommendation(habitName) {
+    if (!habitName) return;
+
+    // Check if habit already exists
+    if (state.habits.some(h => h.name.toLowerCase() === habitName.toLowerCase())) {
+      return;
+    }
+
+    // Add to habits list
+    state.habits.push({ id: nextHabitId++, name: habitName, completed: false });
+    snapshotToday();
+    saveState();
+
+    // Re-render other components
+    renderHabits();
+    renderGarden();
+    renderDailyStats();
+
+    // Re-render insights if open
+    if (state.activeTab === 'insights') {
+      renderCalendar();
+      renderWeeklyInsights();
+    }
+
+    // Update recommendation cards state
+    if (sageState.lastGeneratedReport && !sageState.isGenerating) {
+      renderRecommendationCards(sageState.lastGeneratedReport.recommendations);
+    }
+
+    // Exploding visual particles celebrate success
+    spawnParticles(window.innerWidth / 2, window.innerHeight / 2, 16, ['#34d399', '#a7f3d0', '#6ee7b7', '#fbbf24']);
+  }
+
+  /** Typing animation effect */
+  function typewriteText(text, element) {
+    element.innerHTML = '';
+    
+    // Split into words to typewrite smoothly and fast (to avoid lag on large paragraphs)
+    const words = text.split(' ');
+    let currentIdx = 0;
+    
+    function appendWord() {
+      if (currentIdx < words.length) {
+        element.innerHTML += (currentIdx === 0 ? '' : ' ') + words[currentIdx];
+        currentIdx++;
+        // Request next animation frame or slight delay for typist feel
+        setTimeout(appendWord, 20);
+      }
+    }
+    
+    appendWord();
+  }
+
+  /** REST call to fetch real report JSON from Google Gemini Flash API */
+  async function fetchGeminiReportData(promptText) {
+    const key = sageState.apiKey;
+    if (!key) throw new Error("Gemini API Key is missing");
+
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
+
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: promptText
+              }
+            ]
+          }
+        ],
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errBody = await response.text();
+      throw new Error(`Gemini API Error (${response.status}): ${errBody}`);
+    }
+
+    const resData = await response.json();
+    const rawContent = resData.candidates[0].content.parts[0].text;
+    
+    let cleaned = rawContent.trim();
+    if (cleaned.startsWith("```json")) {
+      cleaned = cleaned.substring(7);
+    }
+    if (cleaned.endsWith("```")) {
+      cleaned = cleaned.substring(0, cleaned.length - 3);
+    }
+
+    return JSON.parse(cleaned.trim());
+  }
+
+
+
   // ===================== UTILITIES =====================
 
   function escapeHtml(str) {
@@ -1169,6 +1713,7 @@
   window.__haven = {
     toggleHabit,
     deleteHabit,
+    addSageRecommendation,
   };
 
   // ===================== INIT =====================
@@ -1206,6 +1751,7 @@
     initHydration();
     initCalendar();
     initHeaderScroll();
+    initSage();
 
     // Snapshot today on init
     snapshotToday();
