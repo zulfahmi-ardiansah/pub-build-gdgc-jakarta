@@ -1184,6 +1184,19 @@
     renderWeeklyInsights();
   }
 
+  function initHeaderScroll() {
+    const header = $('#app-header');
+    if (!header) return;
+
+    window.addEventListener('scroll', () => {
+      if (window.scrollY > 20) {
+        header.classList.add('scrolled');
+      } else {
+        header.classList.remove('scrolled');
+      }
+    }, { passive: true });
+  }
+
   function init() {
     initTabs();
     initSwipe();
@@ -1192,6 +1205,7 @@
     initBreathing();
     initHydration();
     initCalendar();
+    initHeaderScroll();
 
     // Snapshot today on init
     snapshotToday();
