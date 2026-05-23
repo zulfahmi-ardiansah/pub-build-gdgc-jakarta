@@ -1402,7 +1402,7 @@
           showApiKeyStatus("API Key saved successfully! Sage is now in live mode.", "success");
         } else {
           localStorage.removeItem(SAGE_API_KEY_STORAGE);
-          showApiKeyStatus("API Key cleared. Sage is now in simulated mode.", "success");
+          showApiKeyStatus("API Key cleared. Sage is now in Ambient Mode.", "success");
         }
         updateSageUiStatus();
         generateSageReport(true); // Re-generate report on key changes
@@ -1455,7 +1455,7 @@
       text.textContent = 'Gemini Live';
     } else {
       dot.classList.remove('live');
-      text.textContent = 'Simulated Mode';
+      text.textContent = 'Ambient Mode';
     }
   }
 
